@@ -12,8 +12,6 @@ module.exports.minPrice = {
     ru: 50
 }
 
-module.exports.minEditTime = 1
-
 module.exports.symbPerHour = {
     en: 333,
     ua: 1333,
