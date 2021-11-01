@@ -1,6 +1,6 @@
-const { preferableType, pricePerSymbol, minPrice, minEditTime, symbPerHour } = require('../helpers/calculateOptions')
+const { preferableType, pricePerSymbol, minPrice, symbPerHour } = require('../helpers/calculateOptions')
 
-module.exports.makeOrder = (req, res, next) => {
+module.exports.makeOrder = (req, res) => {
     const options = req.body
     try {
         const price = calcPrice(options)
@@ -31,11 +31,13 @@ function calcPrice(options) {
 
 function calcTime(options) {
     try {
-        const hoursToEdit = Math.round(options.count / symbPerHour[options.language]) < 1 ? 1 : Math.round(options.count / symbPerHour[options.language])
+        const hoursToEdit = Math.round(options.count / symbPerHour[options.language]) < 1 ? 1
+            : (preferableType.includes(options.mimetype) ? Math.round(options.count / symbPerHour[options.language])
+                : Math.round(options.count / symbPerHour[options.language]) * 0.2)
         const dateNow = new Date()
         dateNow.setDate(dateNow.getDate() + Math.floor(hoursToEdit / 9))
         dateNow.setHours(dateNow.getHours() + Math.round(hoursToEdit % 9))
-        const deadLineTime = cleanUpTime(dateNow)
+        const deadLineTime = correctionOfTime(dateNow, Math.round(hoursToEdit % 9))
         return {
             deadline_date: `${deadLineTime.getDate()}/${deadLineTime.getMonth() + 1}/${deadLineTime.getFullYear()} ${deadLineTime.getHours()}:${deadLineTime.getMinutes()}:${deadLineTime.getSeconds()}`,
             deadline_unix: parseInt((deadLineTime.getTime() / 1000).toFixed(0))
@@ -45,11 +47,22 @@ function calcTime(options) {
     }
 }
 
-function cleanUpTime(dateNow) {
+function correctionOfTime(dateNow, leftOverHours) {
     dateNow.setMinutes(dateNow.getMinutes() + 30)
     if (dateNow.getHours() > 19) {
         dateNow.setHours(dateNow.getHours() - 19 + 12)
         dateNow.setDate(dateNow.getDate() + 1)
     }
+    if (dateNow.getHours() < 10) {
+        dateNow.setHours(10 + leftOverHours)
+    }
     return dateNow
+}
+
+if (process.env.NODE_ENV === 'test') {
+    module.exports = {
+        calcTime,
+        calcPrice,
+        correctionOfTime
+    }
 }
